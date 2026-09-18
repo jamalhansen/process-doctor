@@ -1,0 +1,15 @@
+*.pyc
+*.pyd
+*.pyo
+.DS_Store
+.coverage
+.env
+.envrc
+.pytest_cache/
+.ruff_cache/
+.venv
+.venv/
+CLAUDE.md
+_NOTES.md
+__pycache__
+uv.toml
