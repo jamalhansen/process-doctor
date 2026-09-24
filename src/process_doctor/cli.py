@@ -12,7 +12,7 @@ _TOOL = register_tool(TOOL_NAME)
 
 console = Console(stderr=True)
 app = typer.Typer(
-    help="Watches every com.localfirst.*/com.jamalhansen.* LaunchAgent for the launchd-stuck "
+    help="Watches every com.localfirst.* LaunchAgent for the launchd-stuck "
     "signature (near-zero CPU growth while still running) and kills, logs, "
     "and notifies on a hang."
 )
@@ -78,7 +78,7 @@ def check(
 
 @app.command()
 def status() -> None:
-    """Show currently tracked com.localfirst.*/com.jamalhansen.* jobs and their state."""
+    """Show currently tracked com.localfirst.* jobs and their state."""
     jobs = system.get_launchctl_jobs()
     state = system.load_state()
     table = Table("label", "pid", "cpu_seconds", "tracked since (epoch)")

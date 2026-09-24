@@ -15,12 +15,12 @@ class TestParseLaunchctlList:
             "-\t0\tcom.localfirst.artist-agent\n"
             "1234\t0\tcom.apple.something\n"
             "5678\t0\tcom.localfirst.weekly-review\n"
-            "9012\t0\tcom.jamalhansen.discovery-loop\n"
+            "9012\t0\tcom.localfirst.discovery-loop\n"
         )
         assert parse_launchctl_list(output) == {
             "com.localfirst.artist-agent": None,
             "com.localfirst.weekly-review": 5678,
-            "com.jamalhansen.discovery-loop": 9012,
+            "com.localfirst.discovery-loop": 9012,
         }
 
     def test_ignores_malformed_lines(self):
