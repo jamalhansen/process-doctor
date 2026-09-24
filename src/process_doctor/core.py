@@ -19,18 +19,21 @@ import re
 from collections.abc import Callable
 from dataclasses import dataclass
 
-LOCALFIRST_PREFIX = "com.localfirst."
+# Kept in sync with fleet-dashboard-service's LOCALFIRST_PREFIXES: the dashboard
+# displays com.jamalhansen.* agents (discovery-loop, ollama-keepalive, voicejournal),
+# so they must be hang-protected here too, not just displayed there.
+LOCALFIRST_PREFIXES = ("com.localfirst.", "com.jamalhansen.")
 
 
 def parse_launchctl_list(output: str) -> dict[str, int | None]:
-    """Parse `launchctl list` output into {label: pid or None}, com.localfirst.* only."""
+    """Parse `launchctl list` output into {label: pid or None}, com.localfirst.*/com.jamalhansen.* only."""
     jobs: dict[str, int | None] = {}
     for line in output.splitlines():
         parts = line.split("\t")
         if len(parts) != 3:
             continue
         pid_str, _status, label = parts
-        if not label.startswith(LOCALFIRST_PREFIX):
+        if not label.startswith(LOCALFIRST_PREFIXES):
             continue
         jobs[label] = None if pid_str == "-" else int(pid_str)
     return jobs

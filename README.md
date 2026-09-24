@@ -1,6 +1,6 @@
 # process-doctor
 
-Watches every com.localfirst.* LaunchAgent for the launchd-stuck signature (near-zero CPU growth while still running) and kills, logs, and notifies on a hang.
+Watches every com.localfirst.* and com.jamalhansen.* LaunchAgent for the launchd-stuck signature (near-zero CPU growth while still running) and kills, logs, and notifies on a hang.
 
 ## Quickstart
 
