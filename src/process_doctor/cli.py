@@ -6,15 +6,16 @@ from rich.console import Console
 from rich.table import Table
 
 from . import system
+from .system import TOOL_NAME
 
-TOOL_NAME = "process-doctor"
 _TOOL = register_tool(TOOL_NAME)
 
 console = Console(stderr=True)
 app = typer.Typer(
-    help="Watches every com.localfirst.* LaunchAgent for the launchd-stuck "
-    "signature (near-zero CPU growth while still running) and kills, logs, "
-    "and notifies on a hang."
+    help="Watches every com.localfirst.* LaunchAgent for a hang -- a stopped "
+    "heartbeat for jobs that send one, flat CPU for jobs that don't -- and "
+    "kills, logs, and notifies. Per-job limits: [jobs.<label>] in "
+    "~/.config/local-first/process-doctor.toml."
 )
 
 
@@ -22,7 +23,8 @@ app = typer.Typer(
 def check(
     stuck_after: Annotated[
         float,
-        typer.Option(help="Seconds a job can run with flat CPU before it's judged stuck"),
+        typer.Option(help="Seconds without a heartbeat (or with flat CPU) before a job is judged stuck; "
+                     "a [jobs.<label>] stuck_after overrides it per job"),
     ] = 600.0,
     cpu_epsilon: Annotated[
         float,
@@ -55,7 +57,7 @@ def check(
         for job in stuck:
             console.print(
                 f"[red]STUCK[/red] {job.label} (pid {job.pid}, "
-                f"{job.elapsed_seconds:.0f}s flat) -- killed"
+                f"{job.elapsed_seconds:.0f}s, {job.reason}) -- killed"
             )
     else:
         console.print("[green]OK[/green] no stuck jobs")
@@ -81,14 +83,18 @@ def status() -> None:
     """Show currently tracked com.localfirst.* jobs and their state."""
     jobs = system.get_launchctl_jobs()
     state = system.load_state()
-    table = Table("label", "pid", "cpu_seconds", "tracked since (epoch)")
+    # Short headers: the full label must fit in an 80-column terminal without truncation.
+    table = Table("label", "pid", "cpu s", "since (epoch)", "beat")
+    now = system.time.time()
     for label, pid in sorted(jobs.items()):
         js = state.get(label)
+        beat = system.last_heartbeat(label)
         table.add_row(
             label,
             str(pid) if pid else "-",
             f"{js.cpu_seconds:.1f}" if js else "-",
             f"{js.first_seen:.0f}" if js else "-",
+            f"{(now - beat) / 60:.0f} min ago" if beat else "-",
         )
     console.print(table)
 

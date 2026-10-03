@@ -93,6 +93,17 @@ class StuckJob:
     pid: int
     elapsed_seconds: float
     cpu_seconds: float
+    # Why it was judged stuck: "flat-cpu" (the original heuristic),
+    # "stale-heartbeat" (the job heartbeats and the beat stopped), or
+    # "max-runtime" (the per-job ceiling, whatever else it was doing).
+    reason: str = "flat-cpu"
+
+
+# Per-job settings, keyed by LaunchAgent label. Both optional:
+#   stuck_after  -- replaces the global stuck_after_seconds for this job
+#   max_runtime  -- hard ceiling in seconds; past it the job is stuck even if
+#                   it is still heartbeating or burning CPU
+JobOverrides = dict[str, dict[str, float]]
 
 
 def check_jobs(
@@ -102,17 +113,31 @@ def check_jobs(
     now: float,
     stuck_after_seconds: float = 600.0,
     cpu_epsilon_seconds: float = 2.0,
+    heartbeat_lookup: Callable[[str], float | None] | None = None,
+    job_overrides: JobOverrides | None = None,
 ) -> tuple[dict[str, JobState], list[StuckJob]]:
     """One detection pass. Returns (next_state, jobs newly judged stuck).
 
-    A job is "stuck" once it has run at least stuck_after_seconds under the
-    same pid with less than cpu_epsilon_seconds of total CPU-time growth
-    since it was first observed. Stuck jobs are dropped from next_state --
-    the caller kills them, and the next poll starts tracking fresh once
-    (if) they restart.
+    Two ways to be stuck, plus a ceiling:
+
+    - A job that heartbeats (see local_first_common.heartbeat) is stuck when
+      its most recent beat is older than stuck_after_seconds. A beat from a
+      previous run (older than this run's first sighting) doesn't count, so a
+      job that used to heartbeat and now hangs before its first beat is still
+      caught by the CPU rule. Added 2026-10-03 after the CPU rule killed the
+      discovery run most mornings: waiting on a 16 s LLM call per item looks
+      exactly like hanging.
+    - A job that doesn't heartbeat is stuck once it has run at least
+      stuck_after_seconds under the same pid with less than
+      cpu_epsilon_seconds of total CPU-time growth since first observed.
+    - Either way, a job past its max_runtime override is stuck.
+
+    Stuck jobs are dropped from next_state -- the caller kills them, and the
+    next poll starts tracking fresh once (if) they restart.
     """
     next_state: dict[str, JobState] = {}
     stuck: list[StuckJob] = []
+    overrides = job_overrides or {}
 
     for label, pid in current_jobs.items():
         if pid is None:
@@ -127,10 +152,27 @@ def check_jobs(
 
         elapsed = now - prev.first_seen
         growth = cpu_now - prev.cpu_seconds
+        job = overrides.get(label, {})
+        stuck_after = float(job.get("stuck_after", stuck_after_seconds))
+        max_runtime = job.get("max_runtime")
 
-        if elapsed >= stuck_after_seconds and growth < cpu_epsilon_seconds:
+        # A beat counts for this run if it is no older than our first sighting
+        # minus one stuck window: first_seen can trail the real start by a poll.
+        beat = heartbeat_lookup(label) if heartbeat_lookup else None
+        beats_this_run = beat is not None and beat >= prev.first_seen - stuck_after
+
+        reason = None
+        if max_runtime is not None and elapsed >= float(max_runtime):
+            reason = "max-runtime"
+        elif beats_this_run:
+            if now - beat >= stuck_after:
+                reason = "stale-heartbeat"
+        elif elapsed >= stuck_after and growth < cpu_epsilon_seconds:
+            reason = "flat-cpu"
+
+        if reason:
             stuck.append(
-                StuckJob(label=label, pid=pid, elapsed_seconds=elapsed, cpu_seconds=cpu_now)
+                StuckJob(label=label, pid=pid, elapsed_seconds=elapsed, cpu_seconds=cpu_now, reason=reason)
             )
             continue
 

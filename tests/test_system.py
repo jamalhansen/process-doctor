@@ -90,3 +90,46 @@ def test_run_check_kills_and_logs_stuck_jobs(tmp_path, monkeypatch):
     mock_notify.assert_called_once()
     assert "STUCK com.localfirst.x" in (tmp_path / "doctor.log").read_text()
     assert system.load_state() == {}
+
+
+def test_job_overrides_read_from_config_and_drop_garbage(tmp_path, monkeypatch):
+    monkeypatch.setattr("local_first_common.config.CONFIG_DIR", tmp_path)
+    (tmp_path / "process-doctor.toml").write_text(
+        '[jobs."com.localfirst.discovery-loop"]\n'
+        "stuck_after = 1800\n"
+        "max_runtime = 7200\n"
+        'unknown = "ignored"\n'
+        '[jobs."com.localfirst.bad"]\n'
+        'stuck_after = "soon"\n'
+        '[jobs]\nnot_a_table = 5\n'
+    )
+    assert system.job_overrides() == {
+        "com.localfirst.discovery-loop": {"stuck_after": 1800.0, "max_runtime": 7200.0},
+    }
+
+
+def test_job_overrides_empty_without_config(tmp_path, monkeypatch):
+    monkeypatch.setattr("local_first_common.config.CONFIG_DIR", tmp_path)
+    assert system.job_overrides() == {}
+
+
+def test_run_check_logs_reason(tmp_path, monkeypatch):
+    monkeypatch.setenv("PROCESS_DOCTOR_STATE_PATH", str(tmp_path / "state.json"))
+    monkeypatch.setenv("PROCESS_DOCTOR_LOG_PATH", str(tmp_path / "doctor.log"))
+    monkeypatch.setenv("LOCALFIRST_HEARTBEAT_DIR", str(tmp_path / "beats"))
+    monkeypatch.setattr("local_first_common.config.CONFIG_DIR", tmp_path)
+    from process_doctor.core import JobState
+
+    system.save_state({"com.localfirst.x": JobState(pid=42, cpu_seconds=1.0, first_seen=0.0)})
+    with (
+        patch("process_doctor.system.get_launchctl_jobs", return_value={"com.localfirst.x": 42}),
+        patch("process_doctor.system.is_keep_alive", return_value=False),
+        patch("process_doctor.system.cpu_lookup_for", return_value=1.0),
+        patch("process_doctor.system.time.time", return_value=10_000.0),
+        patch("process_doctor.system.kill_tree") as kill,
+        patch("process_doctor.system.notify"),
+    ):
+        stuck = system.run_check()
+    assert [s.reason for s in stuck] == ["flat-cpu"]
+    kill.assert_called_once_with(42)
+    assert "reason=flat-cpu" in (tmp_path / "doctor.log").read_text()

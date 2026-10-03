@@ -13,15 +13,20 @@ import time
 from datetime import datetime, timedelta
 from pathlib import Path
 
+from local_first_common.config import get_setting
+from local_first_common.heartbeat import last_heartbeat
 from local_first_common.tracking import get_tracking_db_path
 
 from .core import (
+    JobOverrides,
     JobState,
     StuckJob,
     check_jobs,
     descendant_cpu_seconds,
     parse_launchctl_list,
 )
+
+TOOL_NAME = "process-doctor"
 from .data_health import DegradedTool, ToolStats, check_data_health
 
 # One query per table: processing_log has tool_name directly; fetch_log and
@@ -192,6 +197,32 @@ def log_event(message: str) -> None:
         f.write(f"{ts} {message}\n")
 
 
+def job_overrides() -> JobOverrides:
+    """Per-job settings from ~/.config/local-first/process-doctor.toml:
+
+        [jobs."com.localfirst.discovery-loop"]
+        stuck_after = 1800   # seconds without a heartbeat (or with flat CPU)
+        max_runtime = 7200   # hard ceiling
+
+    Unknown keys are ignored; non-numeric values are dropped rather than crashing the poll.
+    """
+    raw = get_setting(TOOL_NAME, "jobs", default={}) or {}
+    out: JobOverrides = {}
+    for label, settings in raw.items():
+        if not isinstance(settings, dict):
+            continue
+        clean = {}
+        for key in ("stuck_after", "max_runtime"):
+            try:
+                if key in settings:
+                    clean[key] = float(settings[key])
+            except (TypeError, ValueError):
+                continue
+        if clean:
+            out[label] = clean
+    return out
+
+
 def run_check(stuck_after_seconds: float = 600.0, cpu_epsilon_seconds: float = 2.0) -> list[StuckJob]:
     """One full poll: load state, detect, kill+log+notify on anything stuck, save state."""
     state = load_state()
@@ -199,14 +230,15 @@ def run_check(stuck_after_seconds: float = 600.0, cpu_epsilon_seconds: float = 2
         label: pid for label, pid in get_launchctl_jobs().items() if not is_keep_alive(label)
     }
     next_state, stuck = check_jobs(
-        state, jobs, cpu_lookup_for, time.time(), stuck_after_seconds, cpu_epsilon_seconds
+        state, jobs, cpu_lookup_for, time.time(), stuck_after_seconds, cpu_epsilon_seconds,
+        heartbeat_lookup=last_heartbeat, job_overrides=job_overrides(),
     )
     save_state(next_state)
 
     for job in stuck:
         log_event(
             f"STUCK {job.label} pid={job.pid} elapsed={job.elapsed_seconds:.0f}s "
-            f"cpu={job.cpu_seconds:.1f}s -- killing"
+            f"cpu={job.cpu_seconds:.1f}s reason={job.reason} -- killing"
         )
         kill_tree(job.pid)
         notify("process-doctor", f"{job.label} was stuck (pid {job.pid}) -- killed it.")
