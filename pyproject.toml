@@ -5,7 +5,6 @@ description = "Watches every com.localfirst.* LaunchAgent for the launchd-stuck 
 requires-python = ">=3.12"
 dependencies = [
     "typer>=0.15.0",
-    "click<8.3.2",  # 8.3.2 breaks typer 0.24.1's option parsing: AttributeError 'bool' object has no attribute 'isidentifier'. Unpin once a compatible typer release lands.
     "rich>=14.3.3",
     "local-first-common",
 ]
