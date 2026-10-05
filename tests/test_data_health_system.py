@@ -1,5 +1,6 @@
 """Tests for the IO side of data-health checking: real DuckDB queries, state
 persistence, and the full run_data_health_check orchestration."""
+
 from unittest.mock import patch
 
 import duckdb
@@ -27,9 +28,7 @@ def _seed_db(db_path, processing_rows=(), fetch_rows=(), api_call_rows=()):
         )
 
         for name, success in processing_rows:
-            conn.execute(
-                "INSERT INTO processing_log (tool_name, success) VALUES (?, ?)", [name, success]
-            )
+            conn.execute("INSERT INTO processing_log (tool_name, success) VALUES (?, ?)", [name, success])
 
         tool_ids: dict[str, int] = {}
         next_id = 1
@@ -64,7 +63,9 @@ def test_get_tool_stats_aggregates_processing_log(tmp_path, monkeypatch):
     _seed_db(
         db,
         processing_rows=[
-            ("my-tool", True), ("my-tool", True), ("my-tool", False),
+            ("my-tool", True),
+            ("my-tool", True),
+            ("my-tool", False),
             ("other-tool", True),
         ],
     )
@@ -95,9 +96,7 @@ def test_get_tool_stats_respects_lookback_window(tmp_path, monkeypatch):
     db = tmp_path / "test.duckdb"
     monkeypatch.setenv("LOCAL_FIRST_TRACKING_DB", str(db))
     conn = duckdb.connect(str(db))
-    conn.execute(
-        "CREATE TABLE processing_log (tool_name VARCHAR, success BOOLEAN, created_at TIMESTAMP)"
-    )
+    conn.execute("CREATE TABLE processing_log (tool_name VARCHAR, success BOOLEAN, created_at TIMESTAMP)")
     conn.execute("CREATE TABLE tools (id INTEGER, name VARCHAR)")
     conn.execute("CREATE TABLE fetch_log (tool_id INTEGER, success BOOLEAN, attempted_at TIMESTAMP)")
     conn.execute("CREATE TABLE api_call_log (tool_id INTEGER, success BOOLEAN, attempted_at TIMESTAMP)")

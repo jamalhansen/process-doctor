@@ -19,9 +19,7 @@ def test_load_state_missing_file_returns_empty(tmp_path, monkeypatch):
 
 
 def test_get_launchctl_jobs_parses_real_subprocess_shape():
-    fake = subprocess.CompletedProcess(
-        args=[], returncode=0, stdout="-\t0\tcom.localfirst.artist-agent\n"
-    )
+    fake = subprocess.CompletedProcess(args=[], returncode=0, stdout="-\t0\tcom.localfirst.artist-agent\n")
     with patch("process_doctor.system.subprocess.run", return_value=fake):
         assert system.get_launchctl_jobs() == {"com.localfirst.artist-agent": None}
 
@@ -101,7 +99,7 @@ def test_job_overrides_read_from_config_and_drop_garbage(tmp_path, monkeypatch):
         'unknown = "ignored"\n'
         '[jobs."com.localfirst.bad"]\n'
         'stuck_after = "soon"\n'
-        '[jobs]\nnot_a_table = 5\n'
+        "[jobs]\nnot_a_table = 5\n"
     )
     assert system.job_overrides() == {
         "com.localfirst.discovery-loop": {"stuck_after": 1800.0, "max_runtime": 7200.0},

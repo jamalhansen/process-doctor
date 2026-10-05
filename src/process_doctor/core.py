@@ -13,6 +13,7 @@ indistinguishable from a truly stuck one by this signature alone. Defaults
 are set conservatively (600s) to reduce false positives; tune stuck_after_seconds
 per label if a real job needs more headroom.
 """
+
 from __future__ import annotations
 
 import re
@@ -171,9 +172,7 @@ def check_jobs(
             reason = "flat-cpu"
 
         if reason:
-            stuck.append(
-                StuckJob(label=label, pid=pid, elapsed_seconds=elapsed, cpu_seconds=cpu_now, reason=reason)
-            )
+            stuck.append(StuckJob(label=label, pid=pid, elapsed_seconds=elapsed, cpu_seconds=cpu_now, reason=reason))
             continue
 
         next_state[label] = JobState(pid=pid, cpu_seconds=cpu_now, first_seen=prev.first_seen)

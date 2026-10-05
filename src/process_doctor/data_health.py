@@ -8,6 +8,7 @@ time. This module looks at what a tool actually *did* on its recent calls,
 read from processing_log/fetch_log/api_call_log, instead of whether its
 process is still breathing.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass

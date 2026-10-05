@@ -135,7 +135,10 @@ class TestHeartbeatsAndOverrides:
 
     def test_fresh_heartbeat_overrides_flat_cpu(self):
         next_state, stuck = check_jobs(
-            self.PREV, {"com.localfirst.x": 42}, self.FLAT, now=3000.0,
+            self.PREV,
+            {"com.localfirst.x": 42},
+            self.FLAT,
+            now=3000.0,
             heartbeat_lookup=lambda label: 2990.0,  # beat 10s ago, run is 50 min old
         )
         assert stuck == []
@@ -143,7 +146,10 @@ class TestHeartbeatsAndOverrides:
 
     def test_stale_heartbeat_is_stuck_even_with_busy_cpu(self):
         _, stuck = check_jobs(
-            self.PREV, {"com.localfirst.x": 42}, lambda pid: 500.0, now=3000.0,
+            self.PREV,
+            {"com.localfirst.x": 42},
+            lambda pid: 500.0,
+            now=3000.0,
             heartbeat_lookup=lambda label: 2000.0,  # last beat 1000s ago
         )
         assert [s.reason for s in stuck] == ["stale-heartbeat"]
@@ -151,7 +157,10 @@ class TestHeartbeatsAndOverrides:
     def test_beat_from_a_previous_run_falls_back_to_cpu_rule(self):
         prev = {"com.localfirst.x": JobState(pid=42, cpu_seconds=1.9, first_seen=5000.0)}
         _, stuck = check_jobs(
-            prev, {"com.localfirst.x": 42}, self.FLAT, now=5600.0,
+            prev,
+            {"com.localfirst.x": 42},
+            self.FLAT,
+            now=5600.0,
             heartbeat_lookup=lambda label: 1000.0,  # yesterday's beat
         )
         assert [s.reason for s in stuck] == ["flat-cpu"]
@@ -160,7 +169,10 @@ class TestHeartbeatsAndOverrides:
         # first_seen trails the real start by up to a poll; a beat 100s before it is this run's.
         prev = {"com.localfirst.x": JobState(pid=42, cpu_seconds=1.9, first_seen=5000.0)}
         _, stuck = check_jobs(
-            prev, {"com.localfirst.x": 42}, self.FLAT, now=5100.0,
+            prev,
+            {"com.localfirst.x": 42},
+            self.FLAT,
+            now=5100.0,
             heartbeat_lookup=lambda label: 4900.0,
         )
         assert stuck == []
@@ -174,7 +186,10 @@ class TestHeartbeatsAndOverrides:
 
     def test_max_runtime_wins_over_a_live_heartbeat(self):
         _, stuck = check_jobs(
-            self.PREV, {"com.localfirst.x": 42}, lambda pid: 900.0, now=7200.0,
+            self.PREV,
+            {"com.localfirst.x": 42},
+            lambda pid: 900.0,
+            now=7200.0,
             heartbeat_lookup=lambda label: 7199.0,
             job_overrides={"com.localfirst.x": {"max_runtime": 7200.0}},
         )
@@ -182,7 +197,10 @@ class TestHeartbeatsAndOverrides:
 
     def test_overrides_for_other_labels_do_not_apply(self):
         _, stuck = check_jobs(
-            self.PREV, {"com.localfirst.x": 42}, self.FLAT, now=600.0,
+            self.PREV,
+            {"com.localfirst.x": 42},
+            self.FLAT,
+            now=600.0,
             job_overrides={"com.localfirst.other": {"stuck_after": 9999.0}},
         )
         assert [s.reason for s in stuck] == ["flat-cpu"]

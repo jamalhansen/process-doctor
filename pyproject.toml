@@ -30,3 +30,6 @@ local-first-common = { git = "https://github.com/jamalhansen/local-first-common.
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]
+
+[tool.ruff]
+line-length = 120

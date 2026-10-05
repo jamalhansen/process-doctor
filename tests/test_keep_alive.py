@@ -2,6 +2,7 @@
 not the launchd-stuck signature. Found live 2026-09-19: without this, both
 llm-gateway-service and http-retriever-service were being killed and
 restarted by every ~15-minute poll, all day, purely for sitting idle."""
+
 import plistlib
 from unittest.mock import patch
 
@@ -35,9 +36,7 @@ class TestIsKeepAlive:
         """A conditional KeepAlive (e.g. {"SuccessfulExit": False}) still means
         launchd will restart it -- idle-until-restarted is still its normal state."""
         monkeypatch.setenv("PROCESS_DOCTOR_LAUNCH_AGENTS_DIR", str(tmp_path))
-        _write_plist(
-            tmp_path, "com.localfirst.thing", {"KeepAlive": {"SuccessfulExit": False}}
-        )
+        _write_plist(tmp_path, "com.localfirst.thing", {"KeepAlive": {"SuccessfulExit": False}})
         assert system.is_keep_alive("com.localfirst.thing") is True
 
     def test_missing_plist_falls_back_to_false(self, tmp_path, monkeypatch):
@@ -60,9 +59,7 @@ class TestRunCheckExcludesKeepAliveJobs:
 
         from process_doctor.core import JobState
 
-        system.save_state(
-            {"com.localfirst.llm-gateway-service": JobState(pid=42, cpu_seconds=1.9, first_seen=0.0)}
-        )
+        system.save_state({"com.localfirst.llm-gateway-service": JobState(pid=42, cpu_seconds=1.9, first_seen=0.0)})
 
         with (
             patch(
@@ -87,9 +84,7 @@ class TestRunCheckExcludesKeepAliveJobs:
 
         from process_doctor.core import JobState
 
-        system.save_state(
-            {"com.localfirst.weekly-review": JobState(pid=42, cpu_seconds=1.9, first_seen=0.0)}
-        )
+        system.save_state({"com.localfirst.weekly-review": JobState(pid=42, cpu_seconds=1.9, first_seen=0.0)})
 
         with (
             patch(

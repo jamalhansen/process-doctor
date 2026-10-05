@@ -4,6 +4,7 @@ Kept separate from core.py so the detection logic stays testable without
 shelling out. State and log paths are overridable via env vars so tests
 never touch the real files under ~/sync/local-first/.
 """
+
 from __future__ import annotations
 
 import json
@@ -74,9 +75,7 @@ def log_path() -> Path:
 def data_health_state_path() -> Path:
     override = os.environ.get("PROCESS_DOCTOR_DATA_HEALTH_STATE_PATH")
     return (
-        Path(override)
-        if override
-        else Path.home() / "sync" / "local-first" / "process-doctor-data-health-state.json"
+        Path(override) if override else Path.home() / "sync" / "local-first" / "process-doctor-data-health-state.json"
     )
 
 
@@ -226,12 +225,16 @@ def job_overrides() -> JobOverrides:
 def run_check(stuck_after_seconds: float = 600.0, cpu_epsilon_seconds: float = 2.0) -> list[StuckJob]:
     """One full poll: load state, detect, kill+log+notify on anything stuck, save state."""
     state = load_state()
-    jobs = {
-        label: pid for label, pid in get_launchctl_jobs().items() if not is_keep_alive(label)
-    }
+    jobs = {label: pid for label, pid in get_launchctl_jobs().items() if not is_keep_alive(label)}
     next_state, stuck = check_jobs(
-        state, jobs, cpu_lookup_for, time.time(), stuck_after_seconds, cpu_epsilon_seconds,
-        heartbeat_lookup=last_heartbeat, job_overrides=job_overrides(),
+        state,
+        jobs,
+        cpu_lookup_for,
+        time.time(),
+        stuck_after_seconds,
+        cpu_epsilon_seconds,
+        heartbeat_lookup=last_heartbeat,
+        job_overrides=job_overrides(),
     )
     save_state(next_state)
 

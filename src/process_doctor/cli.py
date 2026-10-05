@@ -23,8 +23,10 @@ app = typer.Typer(
 def check(
     stuck_after: Annotated[
         float,
-        typer.Option(help="Seconds without a heartbeat (or with flat CPU) before a job is judged stuck; "
-                     "a [jobs.<label>] stuck_after overrides it per job"),
+        typer.Option(
+            help="Seconds without a heartbeat (or with flat CPU) before a job is judged stuck; "
+            "a [jobs.<label>] stuck_after overrides it per job"
+        ),
     ] = 600.0,
     cpu_epsilon: Annotated[
         float,
@@ -56,8 +58,7 @@ def check(
     if stuck:
         for job in stuck:
             console.print(
-                f"[red]STUCK[/red] {job.label} (pid {job.pid}, "
-                f"{job.elapsed_seconds:.0f}s, {job.reason}) -- killed"
+                f"[red]STUCK[/red] {job.label} (pid {job.pid}, {job.elapsed_seconds:.0f}s, {job.reason}) -- killed"
             )
     else:
         console.print("[green]OK[/green] no stuck jobs")
@@ -118,7 +119,11 @@ def data_health_status(
             continue
         style = "red" if s.failure_rate >= 0.5 else None
         table.add_row(
-            s.table, s.tool_name, str(s.total), str(s.failures), f"{s.failure_rate:.0%}",
+            s.table,
+            s.tool_name,
+            str(s.total),
+            str(s.failures),
+            f"{s.failure_rate:.0%}",
             style=style,
         )
     console.print(table)

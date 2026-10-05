@@ -24,22 +24,16 @@ class TestCheckDataHealth:
 
     def test_below_threshold_is_healthy(self):
         stats = [ToolStats(table="processing_log", tool_name="mostly-fine", total=10, failures=2)]
-        next_degraded, newly = check_data_health(
-            frozenset(), stats, min_calls=5, failure_rate_threshold=0.5
-        )
+        next_degraded, newly = check_data_health(frozenset(), stats, min_calls=5, failure_rate_threshold=0.5)
         assert next_degraded == frozenset()
         assert newly == []
 
     def test_at_or_above_threshold_is_newly_degraded(self):
         stats = [ToolStats(table="processing_log", tool_name="broken", total=10, failures=6)]
-        next_degraded, newly = check_data_health(
-            frozenset(), stats, min_calls=5, failure_rate_threshold=0.5
-        )
+        next_degraded, newly = check_data_health(frozenset(), stats, min_calls=5, failure_rate_threshold=0.5)
         assert next_degraded == frozenset({"processing_log:broken"})
         assert newly == [
-            DegradedTool(
-                table="processing_log", tool_name="broken", total=10, failures=6, failure_rate=0.6
-            )
+            DegradedTool(table="processing_log", tool_name="broken", total=10, failures=6, failure_rate=0.6)
         ]
 
     def test_already_degraded_does_not_alert_again(self):
@@ -69,7 +63,5 @@ class TestCheckDataHealth:
 
     def test_exactly_at_threshold_counts_as_degraded(self):
         stats = [ToolStats(table="processing_log", tool_name="borderline", total=10, failures=5)]
-        next_degraded, _ = check_data_health(
-            frozenset(), stats, min_calls=5, failure_rate_threshold=0.5
-        )
+        next_degraded, _ = check_data_health(frozenset(), stats, min_calls=5, failure_rate_threshold=0.5)
         assert next_degraded == frozenset({"processing_log:borderline"})
