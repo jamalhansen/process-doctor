@@ -165,7 +165,7 @@ def check_jobs(
         reason = None
         if max_runtime is not None and elapsed >= float(max_runtime):
             reason = "max-runtime"
-        elif beats_this_run:
+        elif beats_this_run and beat is not None:  # beats_this_run implies it; pyright can't see that
             if now - beat >= stuck_after:
                 reason = "stale-heartbeat"
         elif elapsed >= stuck_after and growth < cpu_epsilon_seconds:
